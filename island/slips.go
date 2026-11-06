@@ -18,7 +18,7 @@ func welcomeSlip(c *Config) []byte {
 	s := head(NewSlip(), c.Name)
 	s.Big(true).Line("SCAN TO BEGIN", cols/2).Big(false).Feed(1)
 	s.Text("WI-FI  " + ssid).Text("PASSWORD  " + c.SetupPass).Text("NO PAGE? OPEN " + apAddr).Feed(1)
-	s.QR(wifiQR(ssid, c.SetupPass), 7)
+	s.QR(wifiQR(ssid, c.SetupPass), 7).Feed(1).Text("RASPBERRY PI 3 OR ZERO 2 W + EPSON TM-T88V")
 	return s.Cut().Bytes()
 }
 

@@ -1,7 +1,9 @@
 # island
 
-Raspberry Pi + Epson TM-T88V.
+Raspberry Pi 3 (B, B+, A+) or Zero 2 W, and an Epson TM-T88V.
 
-Imager: `https://github.com/novelglobal/island-kit/releases/latest/download/os-list.json`
+In Imager: the card, then Use custom, then the island file from https://github.com/novelglobal/island-kit/releases/latest
 
-`island/` AGPL-3.0 · `image/` MIT
+Or add `https://github.com/novelglobal/island-kit/releases/latest/download/os-list.json` to Imager.
+
+`island/` AGPL-3.0, `image/` MIT
