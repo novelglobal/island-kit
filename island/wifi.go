@@ -150,30 +150,29 @@ func closeAP() { nm(60*time.Second, "--wait", "30", "connection", "down", apCon)
 func join(name, pass string, hidden bool) (bool, string) {
 	con := joinPre + name
 	nm(20*time.Second, "connection", "delete", con)
-	args := []string{"connection", "add", "type", "wifi", "ifname", iface, "con-name", con, "ssid", name, "connection.autoconnect", "yes"}
+	args := []string{"--wait", "45", "device", "wifi", "connect", name}
 	if pass != "" {
-		args = append(args, "wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", pass)
+		args = append(args, "password", pass)
 	}
+	args = append(args, "ifname", iface, "name", con)
 	if hidden {
-		args = append(args, "802-11-wireless.hidden", "yes")
-	}
-	if code, out := nm(20*time.Second, args...); code != 0 {
-		return false, oneLine(out)
+		args = append(args, "hidden", "yes")
 	}
 	why := ""
 	for i := 0; i < 3; i++ {
 		nm(20*time.Second, "device", "wifi", "rescan", "ifname", iface)
-		time.Sleep(6 * time.Second)
-		code, out := nm(60*time.Second, "--wait", "45", "connection", "up", con)
+		time.Sleep(8 * time.Second)
+		code, out := nm(60*time.Second, args...)
 		if code == 0 {
+			nm(20*time.Second, "connection", "modify", con, "connection.autoconnect", "yes")
 			return true, ""
 		}
 		why = oneLine(out)
-		if strings.Contains(out, "ecrets") {
+		nm(20*time.Second, "connection", "delete", con)
+		if strings.Contains(out, "ecrets") || strings.Contains(out, "assword") {
 			break
 		}
 	}
-	nm(20*time.Second, "connection", "delete", con)
 	return false, why
 }
 

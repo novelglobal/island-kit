@@ -228,7 +228,7 @@ func (a *App) apply(ch Choice) string {
 		return ""
 	}
 	joined := false
-	why := ""
+	why, reason := "", ""
 	if con, ok := strings.CutPrefix(ch.Net, "keep:"); ok {
 		joined = rejoin(con)
 		ch.Net = con
@@ -246,10 +246,11 @@ func (a *App) apply(ch Choice) string {
 		if !joined {
 			log.Printf("could not join %s: %s", ch.Net, err)
 			why = "COULD NOT JOIN " + ch.Net + ". CHECK ITS PASSWORD."
+			reason = err
 		}
 	}
 	if !joined {
-		a.print(textSlip(c.Name, "COULD NOT JOIN", ch.Net, "JOIN "+setupSSID(c)+" AGAIN"))
+		a.print(textSlip(c.Name, "COULD NOT JOIN", ch.Net, strings.ToUpper(clean(reason, 120)), "JOIN "+setupSSID(c)+" AGAIN", "SLIP KEY  "+c.SetupPass))
 		return why
 	}
 	a.update(func(c *Config) {

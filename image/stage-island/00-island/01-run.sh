@@ -9,6 +9,10 @@ grep -q '^dtoverlay=gpio-key' "$CFG" || printf '
 [all]
 dtoverlay=gpio-key,gpio=3,keycode=148,label="island"
 ' >> "$CFG"
+CMD="$(dirname "$CFG")/cmdline.txt"
+if [ -f "$CMD" ] && ! grep -q 'ieee80211_regdom' "$CMD"; then
+  sed -i "1 s/\$/ cfg80211.ieee80211_regdom=${WPA_COUNTRY:-AU}/" "$CMD"
+fi
 
 on_chroot << CHROOT
 systemctl enable island.service
