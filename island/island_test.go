@@ -111,6 +111,7 @@ func TestConfigKept(t *testing.T) {
 type site struct {
 	mu       sync.Mutex
 	approved bool
+	own      bool
 	asked    int
 	token    string
 	jobs     []map[string]any
@@ -141,7 +142,7 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(401)
 			return
 		}
-		if !strings.Contains(r.URL.RawQuery, "can=off+wifi") {
+		if strings.Contains(r.URL.RawQuery, "can=off+wifi") == s.own {
 			w.WriteHeader(400)
 			return
 		}
@@ -189,20 +190,20 @@ func TestPairThenPrint(t *testing.T) {
 	defer srv.Close()
 	a, dir := testApp(t, srv.URL)
 
-	if w := a.pairStep(); w.Seconds() != 2 {
+	if w := a.pairStep(0); w.Seconds() != 2 {
 		t.Fatalf("wait %v", w)
 	}
 	sl := slips(t, dir)
 	if len(sl) != 1 || !strings.Contains(sl[0], "ABCD-2345") {
 		t.Fatalf("pair slip: %q", sl)
 	}
-	if a.waiting() != "ABCD2345" {
-		t.Fatalf("waiting: %q", a.waiting())
+	if a.waiting(0) != "ABCD2345" {
+		t.Fatalf("waiting: %q", a.waiting(0))
 	}
 	s.approved = true
-	a.pairStep()
+	a.pairStep(0)
 	c := a.conf()
-	if c.Printer != "laundromate" || c.Token != "tok-from-site" || s.asked != 1 || a.waiting() != "" {
+	if c.Printer != "laundromate" || c.Token != "tok-from-site" || s.asked != 1 || a.waiting(0) != "" {
 		t.Fatalf("paired: %+v asked %d", c, s.asked)
 	}
 	if sl := slips(t, dir); len(sl) != 2 {
@@ -211,7 +212,7 @@ func TestPairThenPrint(t *testing.T) {
 
 	want := []byte("\x1b@HELLO\n\x1dVB\x00")
 	s.jobs = append(s.jobs, map[string]any{"job": "j1", "code": "DA-7K2Q", "escpos": base64.StdEncoding.EncodeToString(want)})
-	if _, next := a.pullStep(); next != "" {
+	if _, next := a.pullStep(0); next != "" {
 		t.Fatalf("next %q", next)
 	}
 	found := false
@@ -221,19 +222,19 @@ func TestPairThenPrint(t *testing.T) {
 	if !found || len(s.reports) != 1 || s.reports[0]["status"] != "printed" || s.reports[0]["job"] != "j1" || a.conf().Printed != 1 {
 		t.Fatalf("print: found %v reports %v", found, s.reports)
 	}
-	if w, _ := a.pullStep(); w.Seconds() != 20 {
+	if w, _ := a.pullStep(0); w.Seconds() != 20 {
 		t.Fatalf("x-wait: %v", w)
 	}
 	s.jobs = append(s.jobs, map[string]any{"off": true}, map[string]any{"wifi": true})
-	if _, next := a.pullStep(); next != "off" {
+	if _, next := a.pullStep(0); next != "off" {
 		t.Fatalf("off: %q", next)
 	}
-	if _, next := a.pullStep(); next != "setup" {
+	if _, next := a.pullStep(0); next != "setup" {
 		t.Fatalf("wifi: %q", next)
 	}
 	s.token = ""
 	for i := 0; i < 3; i++ {
-		a.pullStep()
+		a.pullStep(0)
 	}
 	if c := a.conf(); c.Token != "" || c.Printer != "" {
 		t.Fatalf("still paired: %+v", c)
@@ -242,7 +243,7 @@ func TestPairThenPrint(t *testing.T) {
 
 func TestStatusSlip(t *testing.T) {
 	a, _ := testApp(t, "https://example.org")
-	a.setWaiting("WXYZ6789")
+	a.setWaiting(0, "WXYZ6789")
 	b := string(statusSlip(a))
 	for _, want := range []string{"LAUNDROMATE", "MODE  ONLINE", "WXYZ-6789", a.conf().SetupPass} {
 		if !strings.Contains(b, want) {
@@ -272,5 +273,38 @@ func TestPaper(t *testing.T) {
 	defer setPaper("80")
 	if b := NewSlip().QR("HELLO", 6).Bytes(); !bytes.Contains(b, []byte("\x1dv0\x00\x30\x00")) {
 		t.Fatalf("58 mm qr: % x", b[:24])
+	}
+}
+
+func TestOwnSiteBeside(t *testing.T) {
+	home, own := &site{approved: true}, &site{approved: true, own: true}
+	hs, os2 := httptest.NewServer(home), httptest.NewServer(own)
+	defer hs.Close()
+	defer os2.Close()
+	a, _ := testApp(t, hs.URL)
+	a.update(func(c *Config) { c.Own = Link{Server: os2.URL} })
+	for i := 0; i < 2; i++ {
+		a.pairStep(i)
+		a.pairStep(i)
+	}
+	c := a.conf()
+	if c.Token != "tok-from-site" || c.Own.Token != "tok-from-site" || c.Own.Server != os2.URL {
+		t.Fatalf("both paired: %+v", c)
+	}
+	own.jobs = append(own.jobs, map[string]any{"off": true})
+	if _, next := a.pullStep(1); next != "" {
+		t.Fatalf("an own site turned the island off: %q", next)
+	}
+	if _, next := a.pullStep(0); next != "" {
+		t.Fatalf("home: %q", next)
+	}
+}
+
+func TestOwnSiteMoved(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "island.json")
+	os.WriteFile(p, []byte(`{"name":"X","server":"https://example.org","printer":"x","token":"t"}`), 0o600)
+	c, err := loadConfig(p)
+	if err != nil || c.Server != defaultServer || c.Token != "" || c.Own != (Link{"https://example.org", "x", "t"}) {
+		t.Fatalf("moved: %+v %v", c, err)
 	}
 }

@@ -80,7 +80,7 @@ type view struct {
 
 func (p *portal) render(w http.ResponseWriter, v view) {
 	c := p.a.conf()
-	v.Name, v.SSID, v.Server = c.Name, setupSSID(c), c.Server
+	v.Name, v.SSID, v.Server = c.Name, setupSSID(c), c.Own.Server
 	v.Offline = c.Mode == "offline"
 	v.Paper = c.Paper
 	w.Header().Set("content-type", "text/html; charset=utf-8")

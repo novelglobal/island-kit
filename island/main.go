@@ -27,12 +27,12 @@ type App struct {
 	path    string
 	pr      *Printer
 	asks    chan string
-	code    string
+	code    [2]string
 	readied bool
 
-	pair      *pairing
-	pairSlips int
-	refused   int
+	pair      [2]*pairing
+	pairSlips [2]int
+	refused   [2]int
 }
 
 func main() {
@@ -80,8 +80,8 @@ func (a *App) update(f func(*Config)) {
 	}
 }
 
-func (a *App) setWaiting(code string) { a.mu.Lock(); a.code = code; a.mu.Unlock() }
-func (a *App) waiting() string        { a.mu.Lock(); defer a.mu.Unlock(); return a.code }
+func (a *App) setWaiting(i int, code string) { a.mu.Lock(); a.code[i] = code; a.mu.Unlock() }
+func (a *App) waiting(i int) string          { a.mu.Lock(); defer a.mu.Unlock(); return a.code[i] }
 
 func (a *App) ask(what string) {
 	select {
@@ -254,10 +254,12 @@ func (a *App) apply(ch Choice) string {
 		return why
 	}
 	a.update(func(c *Config) {
-		moved := ch.Server != "" && ch.Server != c.Server
 		c.Name, c.Mode = ch.Name, "online"
-		if moved {
-			c.Server, c.Printer, c.Token = ch.Server, "", ""
+		if ch.Server == defaultServer {
+			ch.Server = ""
+		}
+		if ch.Server != c.Own.Server {
+			c.Own = Link{Server: ch.Server}
 		}
 	})
 	if renamed {
@@ -269,9 +271,10 @@ func (a *App) apply(ch Choice) string {
 
 func (a *App) online(ctx context.Context) string {
 	var lost time.Time
-	ready := false
+	var ready [2]bool
+	var due [2]time.Time
 	for {
-		var wait time.Duration
+		wait := 5 * time.Second
 		if !online() {
 			if lost.IsZero() {
 				lost = time.Now()
@@ -280,21 +283,33 @@ func (a *App) online(ctx context.Context) string {
 			if time.Since(lost) > lostFor {
 				return "setup"
 			}
-			wait = 5 * time.Second
 		} else {
 			lost = time.Time{}
-			if a.conf().Token == "" {
-				wait = a.pairStep()
-			} else {
-				if !ready {
-					ready = true
-					n, _ := current()
-					a.print(readySlip(a.conf(), n))
+			n := a.conf().sites()
+			for i := 0; i < n; i++ {
+				if time.Now().Before(due[i]) {
+					continue
 				}
-				var next string
-				if wait, next = a.pullStep(); next != "" {
-					return next
+				var w time.Duration
+				if l := a.conf().link(i); l.Token == "" {
+					ready[i] = false
+					w = a.pairStep(i)
+				} else {
+					if !ready[i] {
+						ready[i] = true
+						wifi, _ := current()
+						a.print(readySlip(a.conf(), l, wifi))
+					}
+					var next string
+					if w, next = a.pullStep(i); next != "" {
+						return next
+					}
 				}
+				due[i] = time.Now().Add(w)
+			}
+			wait = time.Until(due[0])
+			if n > 1 && due[1].Before(due[0]) {
+				wait = time.Until(due[1])
 			}
 		}
 		if w := a.nap(ctx, wait); w != "" {

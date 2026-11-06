@@ -20,6 +20,35 @@ type Config struct {
 	IslandPass string `json:"island_pass,omitempty"`
 	Printed    int    `json:"printed"`
 	Paper      string `json:"paper,omitempty"`
+	Own        Link   `json:"own,omitempty"`
+}
+
+type Link struct {
+	Server  string `json:"server,omitempty"`
+	Printer string `json:"printer,omitempty"`
+	Token   string `json:"token,omitempty"`
+}
+
+func (c *Config) link(i int) Link {
+	if i == 0 {
+		return Link{c.Server, c.Printer, c.Token}
+	}
+	return c.Own
+}
+
+func (c *Config) setLink(i int, l Link) {
+	if i == 0 {
+		c.Printer, c.Token = l.Printer, l.Token
+	} else {
+		c.Own = l
+	}
+}
+
+func (c *Config) sites() int {
+	if c.Own.Server != "" {
+		return 2
+	}
+	return 1
 }
 
 const defaultServer = "https://novel.global"
@@ -36,8 +65,11 @@ func loadConfig(path string) (*Config, error) {
 	if c.Name == "" {
 		c.Name = defaultName()
 	}
-	if c.Server == "" {
-		c.Server = defaultServer
+	if c.Server != defaultServer {
+		if c.Server != "" && c.Own.Server == "" {
+			c.Own = Link{c.Server, c.Printer, c.Token}
+		}
+		c.Server, c.Printer, c.Token = defaultServer, "", ""
 	}
 	if len(c.SetupPass) < 8 {
 		c.SetupPass = randomWord(10)

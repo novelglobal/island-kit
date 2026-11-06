@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -16,54 +17,56 @@ type pairing struct {
 	until        time.Time
 }
 
-func (a *App) pairStep() time.Duration {
+func (a *App) pairStep(i int) time.Duration {
 	c := a.conf()
-	if a.pair == nil || time.Now().After(a.pair.until) {
-		r, err := call("POST", c.Server+"/api/pair", "", map[string]string{"name": c.Name, "v": version, "paper": paper})
+	l := c.link(i)
+	if a.pair[i] == nil || time.Now().After(a.pair[i].until) {
+		r, err := call("POST", l.Server+"/api/pair", "", map[string]string{"name": c.Name, "v": version, "paper": paper})
 		if err != nil {
-			log.Printf("no answer from %s: %v", c.Server, err)
+			log.Printf("no answer from %s: %v", l.Server, err)
 			return 15 * time.Second
 		}
 		if r.Status == 429 {
 			return 5 * time.Minute
 		}
 		if r.Status != 201 || str(r.Body, "code") == "" {
-			log.Printf("%s answered %d to a pairing", c.Server, r.Status)
+			log.Printf("%s answered %d to a pairing", l.Server, r.Status)
 			return time.Minute
 		}
 		every := time.Duration(num(r.Body, "every")) * time.Second
 		if every < 2*time.Second || every > time.Minute {
 			every = 5 * time.Second
 		}
-		a.pair = &pairing{code: str(r.Body, "code"), device: str(r.Body, "device"), every: every, until: time.Now().Add(14 * time.Minute)}
-		a.setWaiting(a.pair.code)
-		log.Printf("pairing code %s", showCode(a.pair.code))
-		if a.pairSlips < 3 {
-			a.pairSlips++
-			a.print(pairSlip(c, a.pair.code))
+		a.pair[i] = &pairing{code: str(r.Body, "code"), device: str(r.Body, "device"), every: every, until: time.Now().Add(14 * time.Minute)}
+		a.setWaiting(i, a.pair[i].code)
+		log.Printf("pairing code %s for %s", showCode(a.pair[i].code), l.Server)
+		if a.pairSlips[i] < 3 {
+			a.pairSlips[i]++
+			a.print(pairSlip(c, l.Server, a.pair[i].code))
 		}
 	}
-	r, err := call("POST", c.Server+"/api/pair/poll", "", map[string]string{"device": a.pair.device})
+	r, err := call("POST", l.Server+"/api/pair/poll", "", map[string]string{"device": a.pair[i].device})
 	if err != nil {
 		return 10 * time.Second
 	}
 	switch r.Status {
 	case 202:
-		return a.pair.every
+		return a.pair[i].every
 	case 404:
-		a.pair = nil
-		a.setWaiting("")
+		a.pair[i] = nil
+		a.setWaiting(i, "")
 		return time.Second
 	case 200:
 		printer, token := str(r.Body, "printer"), str(r.Body, "token")
 		if printer == "" || token == "" {
 			return time.Minute
 		}
-		a.update(func(c *Config) { c.Printer, c.Token = printer, token })
-		a.pair, a.pairSlips, a.refused = nil, 0, 0
-		a.setWaiting("")
-		log.Printf("paired as %s on %s", printer, c.Server)
-		a.print(pairedSlip(a.conf()))
+		l.Printer, l.Token = printer, token
+		a.update(func(c *Config) { c.setLink(i, l) })
+		a.pair[i], a.pairSlips[i], a.refused[i] = nil, 0, 0
+		a.setWaiting(i, "")
+		log.Printf("paired as %s on %s", printer, l.Server)
+		a.print(pairedSlip(c.Name, l))
 		return time.Second
 	}
 	return 30 * time.Second
@@ -76,9 +79,13 @@ func showCode(c string) string {
 	return c
 }
 
-func (a *App) pullStep() (time.Duration, string) {
+func (a *App) pullStep(i int) (time.Duration, string) {
 	c := a.conf()
-	q := url.Values{"can": {"off wifi"}, "v": {version}}
+	l := c.link(i)
+	q := url.Values{"v": {version}}
+	if i == 0 {
+		q.Set("can", "off wifi")
+	}
 	if n, sig := current(); n != "" {
 		q.Set("net", n)
 		q.Set("rssi", strconv.Itoa(sig/2-100))
@@ -86,8 +93,8 @@ func (a *App) pullStep() (time.Duration, string) {
 	if ip := localIP(); ip != "" {
 		q.Set("ip", ip)
 	}
-	base := c.Server + "/api/printers/" + url.PathEscape(c.Printer)
-	r, err := call("GET", base+"/next?"+q.Encode(), c.Token, nil)
+	base := l.Server + "/api/printers/" + url.PathEscape(l.Printer)
+	r, err := call("GET", base+"/next?"+q.Encode(), l.Token, nil)
 	if err != nil {
 		log.Printf("no signal: %v", err)
 		return 15 * time.Second, ""
@@ -98,27 +105,27 @@ func (a *App) pullStep() (time.Duration, string) {
 	}
 	switch r.Status {
 	case 401:
-		a.refused++
-		log.Printf("the token was refused by %s for %s (%d)", c.Server, c.Printer, a.refused)
-		if a.refused >= 3 {
-			a.update(func(c *Config) { c.Printer, c.Token = "", "" })
-			a.refused = 0
-			a.print(textSlip(c.Name, "NOT PAIRED ANY MORE", "A NEW CODE FOLLOWS"))
+		a.refused[i]++
+		log.Printf("the token was refused by %s for %s (%d)", l.Server, l.Printer, a.refused[i])
+		if a.refused[i] >= 3 {
+			a.update(func(c *Config) { c.setLink(i, Link{Server: l.Server}) })
+			a.refused[i] = 0
+			a.print(textSlip(c.Name, "NOT PAIRED ANY MORE", strings.ToUpper(hostOf(l.Server)), "A NEW CODE FOLLOWS"))
 		}
 		return time.Minute, ""
 	case 204:
-		a.refused = 0
+		a.refused[i] = 0
 		return wait, ""
 	case 200:
-		a.refused = 0
+		a.refused[i] = 0
 	default:
 		log.Printf("the server answered %d", r.Status)
 		return time.Minute, ""
 	}
-	if r.Body["wifi"] == true {
+	if i == 0 && r.Body["wifi"] == true {
 		return 0, "setup"
 	}
-	if r.Body["off"] == true {
+	if i == 0 && r.Body["off"] == true {
 		return 0, "off"
 	}
 	job := str(r.Body, "job")
@@ -143,7 +150,7 @@ func (a *App) pullStep() (time.Duration, string) {
 		a.update(func(c *Config) { c.Printed++ })
 		log.Printf("%s printed", code)
 	}
-	if _, err := call("POST", base+"/jobs/"+url.PathEscape(job), c.Token, map[string]string{"status": status, "error": why}); err != nil {
+	if _, err := call("POST", base+"/jobs/"+url.PathEscape(job), l.Token, map[string]string{"status": status, "error": why}); err != nil {
 		log.Printf("%s: could not say how it went: %v", code, err)
 	}
 	return time.Second, ""

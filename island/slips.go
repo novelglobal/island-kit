@@ -22,20 +22,20 @@ func welcomeSlip(c *Config) []byte {
 	return s.Cut().Bytes()
 }
 
-func pairSlip(c *Config, code string) []byte {
+func pairSlip(c *Config, server, code string) []byte {
 	s := head(NewSlip(), c.Name)
 	s.Big(true).Line(showCode(code), cols/2).Big(false).Feed(1)
-	s.Text("SCAN TO APPROVE ON " + strings.ToUpper(hostOf(c.Server))).Feed(1)
-	s.QR(c.Server+"/admin#pair="+code, 6)
+	s.Text("SCAN TO APPROVE ON " + strings.ToUpper(hostOf(server))).Feed(1)
+	s.QR(server+"/admin#pair="+code, 6)
 	return s.Cut().Bytes()
 }
 
-func pairedSlip(c *Config) []byte {
-	return textSlip(c.Name, "PAIRED", strings.ToUpper(c.Printer)+" ON "+strings.ToUpper(hostOf(c.Server)), "READY TO PRINT")
+func pairedSlip(name string, l Link) []byte {
+	return textSlip(name, "PAIRED", strings.ToUpper(l.Printer)+" ON "+strings.ToUpper(hostOf(l.Server)), "READY TO PRINT")
 }
 
-func readySlip(c *Config, wifi string) []byte {
-	lines := []string{"READY", strings.ToUpper(c.Printer)}
+func readySlip(c *Config, l Link, wifi string) []byte {
+	lines := []string{"READY", strings.ToUpper(l.Printer) + " ON " + strings.ToUpper(hostOf(l.Server))}
 	if wifi != "" {
 		lines = append(lines, "WI-FI "+wifi)
 	}
@@ -82,13 +82,16 @@ func statusSlip(a *App) []byte {
 		s.Text("ADDRESS  " + ip)
 	}
 	if c.Mode == "online" {
-		s.Text("SITE  " + hostOf(c.Server))
-		if c.Printer != "" {
-			s.Text("PAIRED AS  " + strings.ToUpper(c.Printer))
-		} else if code := a.waiting(); code != "" {
-			s.Feed(1).Center().Big(true).Line(showCode(code), cols/2).Big(false).QR(c.Server+"/admin#pair="+code, 6).Text("SCAN TO APPROVE").Left()
-		} else {
-			s.Text("NOT PAIRED: WAITING FOR THE SITE")
+		for i := 0; i < c.sites(); i++ {
+			l := c.link(i)
+			s.Text("SITE  " + hostOf(l.Server))
+			if l.Printer != "" {
+				s.Text("PAIRED AS  " + strings.ToUpper(l.Printer))
+			} else if code := a.waiting(i); code != "" {
+				s.Feed(1).Center().Big(true).Line(showCode(code), cols/2).Big(false).QR(l.Server+"/admin#pair="+code, 6).Text("SCAN TO APPROVE").Left()
+			} else {
+				s.Text("NOT PAIRED: WAITING FOR THE SITE")
+			}
 		}
 	}
 	s.Text("PAPER  " + paper + " MM")
