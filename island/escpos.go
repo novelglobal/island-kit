@@ -11,10 +11,19 @@ import (
 	"rsc.io/qr"
 )
 
-const (
-	dots = 512
-	cols = 42
+var (
+	paper = "80"
+	dots  = 512
+	cols  = 42
 )
+
+func setPaper(p string) {
+	if p == "58" {
+		paper, dots, cols = "58", 384, 32
+	} else {
+		paper, dots, cols = "80", 512, 42
+	}
+}
 
 type Slip struct{ b bytes.Buffer }
 

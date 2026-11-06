@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -34,6 +35,38 @@ func (p *Printer) find() string {
 		return m[0]
 	}
 	return ""
+}
+
+func (p *Printer) Model() string {
+	d := p.find()
+	if d == "" || p.dry != "" {
+		return ""
+	}
+	b, err := os.ReadFile(filepath.Join("/sys/class/usbmisc", filepath.Base(d), "device/ieee1284_id"))
+	if err != nil {
+		return ""
+	}
+	return modelOf(string(b))
+}
+
+func modelOf(id string) string {
+	for _, f := range strings.Split(id, ";") {
+		k, v, ok := strings.Cut(strings.TrimSpace(f), ":")
+		if ok && (k == "MDL" || k == "MODEL") {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func paperOf(model string) string {
+	m := strings.ToUpper(model)
+	for _, k := range []string{"58", "TM-P20", "TM-P60", "MTP-2", "PT-210", "GOOJPRT"} {
+		if strings.Contains(m, k) {
+			return "58"
+		}
+	}
+	return "80"
 }
 
 func (p *Printer) Here() bool {

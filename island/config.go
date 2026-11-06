@@ -19,6 +19,7 @@ type Config struct {
 	SetupPass  string `json:"setup_pass"`
 	IslandPass string `json:"island_pass,omitempty"`
 	Printed    int    `json:"printed"`
+	Paper      string `json:"paper,omitempty"`
 }
 
 const defaultServer = "https://novel.global"

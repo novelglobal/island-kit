@@ -91,6 +91,10 @@ func statusSlip(a *App) []byte {
 			s.Text("NOT PAIRED: WAITING FOR THE SITE")
 		}
 	}
+	s.Text("PAPER  " + paper + " MM")
+	if m := a.pr.Model(); m != "" {
+		s.Text("PRINTER  " + m)
+	}
 	s.Text(fmt.Sprintf("PRINTED  %d", c.Printed))
 	s.Text("SETUP WI-FI  " + setupSSID(c)).Text("PASSWORD  " + c.SetupPass)
 	s.Text("VERSION  " + version)
@@ -98,7 +102,7 @@ func statusSlip(a *App) []byte {
 }
 
 func testStrip(name string) []byte {
-	const w, h = dots, 160
+	w, h := dots, 160
 	img := image.NewGray(image.Rect(0, 0, w, h))
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
@@ -122,7 +126,7 @@ func testStrip(name string) []byte {
 	s := head(NewSlip(), name).Text("TEST STRIP").Image(img).Feed(1).Left()
 	s.Text("A  abcdefghijklmnopqrstuvwxyz 0123456789")
 	s.b.WriteString("\x1bM\x01")
-	s.Line("B  abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLM", 56)
+	s.Line("B  abcdefghijklmnopqrstuvwxyz 0123456789 ABCDEFGHIJKLM", cols*4/3)
 	s.b.WriteString("\x1bM\x00")
 	s.Bold(true).Text("BOLD  ABCDEFGHIJ").Bold(false)
 	s.Big(true).Line("BIG  ABC", cols/2).Big(false)

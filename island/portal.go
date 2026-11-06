@@ -24,8 +24,8 @@ var pageHTML string
 var pages = template.Must(template.New("page").Parse(pageHTML))
 
 type Choice struct {
-	Name, Mode, Net, Pass, Server string
-	Hidden                        bool
+	Name, Mode, Net, Pass, Server, Paper string
+	Hidden                               bool
 }
 
 type portal struct {
@@ -72,16 +72,17 @@ func (p *portal) serve(ctx context.Context) {
 }
 
 type view struct {
-	Name, SSID, Note, Server, Done string
-	Setup, Island, Offline         bool
-	Nets                           []Net
-	Known                          []Known
+	Name, SSID, Note, Server, Done, Paper string
+	Setup, Island, Offline                bool
+	Nets                                  []Net
+	Known                                 []Known
 }
 
 func (p *portal) render(w http.ResponseWriter, v view) {
 	c := p.a.conf()
 	v.Name, v.SSID, v.Server = c.Name, setupSSID(c), c.Server
 	v.Offline = c.Mode == "offline"
+	v.Paper = c.Paper
 	w.Header().Set("content-type", "text/html; charset=utf-8")
 	w.Header().Set("cache-control", "no-store")
 	if err := pages.Execute(w, v); err != nil {
@@ -134,6 +135,9 @@ func (p *portal) choose(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := Choice{Name: strings.ToUpper(clean(r.FormValue("name"), 24)), Mode: r.FormValue("mode"), Server: strings.TrimRight(clean(r.FormValue("server"), 100), "/")}
+	if p := r.FormValue("paper"); p == "58" || p == "80" {
+		c.Paper = p
+	}
 	other := clean(r.FormValue("other"), 32)
 	c.Net, c.Pass = clean(r.FormValue("net"), 64), r.FormValue("pass")
 	if other != "" {

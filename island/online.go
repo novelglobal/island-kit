@@ -19,7 +19,7 @@ type pairing struct {
 func (a *App) pairStep() time.Duration {
 	c := a.conf()
 	if a.pair == nil || time.Now().After(a.pair.until) {
-		r, err := call("POST", c.Server+"/api/pair", "", map[string]string{"name": c.Name, "v": version})
+		r, err := call("POST", c.Server+"/api/pair", "", map[string]string{"name": c.Name, "v": version, "paper": paper})
 		if err != nil {
 			log.Printf("no answer from %s: %v", c.Server, err)
 			return 15 * time.Second

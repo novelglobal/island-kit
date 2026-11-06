@@ -260,3 +260,17 @@ func TestWelcomeSlip(t *testing.T) {
 		}
 	}
 }
+
+func TestPaper(t *testing.T) {
+	if m := modelOf("MFG:EPSON;CMD:ESC/POS;MDL:TM-T88V;CLS:PRINTER;"); m != "TM-T88V" || paperOf(m) != "80" {
+		t.Fatalf("epson: %q", m)
+	}
+	if paperOf(modelOf("MANUFACTURER:Printer;MODEL:POS58 Printer USB;")) != "58" || paperOf("") != "80" {
+		t.Fatal("58 mm")
+	}
+	setPaper("58")
+	defer setPaper("80")
+	if b := NewSlip().QR("HELLO", 6).Bytes(); !bytes.Contains(b, []byte("\x1dv0\x00\x30\x00")) {
+		t.Fatalf("58 mm qr: % x", b[:24])
+	}
+}

@@ -44,6 +44,10 @@ a{color:inherit}.soft{opacity:.5;font-size:11px;letter-spacing:.14em;margin-top:
 <h2>THIS ISLAND IS</h2>
 <label class="n"><input type="radio" name="mode" value="online" {{if not .Offline}}checked{{end}}><span>ONLINE</span><i>PRINTS FOR THE SITE</i></label>
 <label class="n"><input type="radio" name="mode" value="offline" {{if .Offline}}checked{{end}}><span>OFFLINE</span><i>ITS OWN WI-FI</i></label>
+<h2>PAPER</h2>
+<label class="n"><input type="radio" name="paper" value="" {{if eq .Paper ""}}checked{{end}}><span>AUTO</span></label>
+<label class="n"><input type="radio" name="paper" value="80" {{if eq .Paper "80"}}checked{{end}}><span>80 MM</span></label>
+<label class="n"><input type="radio" name="paper" value="58" {{if eq .Paper "58"}}checked{{end}}><span>58 MM</span></label>
 <div id="wifi">
 <h2>WI-FI</h2>
 {{range $i, $k := .Known}}<label class="n"><input type="radio" name="net" value="keep:{{$k.Con}}" {{if eq $i 0}}checked{{end}}><span>{{$k.SSID}}</span><i>KNOWN</i></label>{{end}}

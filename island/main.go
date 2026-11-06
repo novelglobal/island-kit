@@ -52,6 +52,7 @@ func main() {
 		log.Fatalf("the settings in %s could not be read: %v", *path, err)
 	}
 	a := &App{cfg: cfg, path: *path, pr: newPrinter(), asks: make(chan string, 4)}
+	a.fit()
 	if *demo != "" {
 		a.demo(*demo)
 		return
@@ -87,6 +88,20 @@ func (a *App) ask(what string) {
 	case a.asks <- what:
 	default:
 	}
+}
+
+func (a *App) fit() {
+	p := a.conf().Paper
+	if p == "" {
+		p = os.Getenv("ISLAND_PAPER")
+	}
+	if p == "" {
+		p = paperOf(a.pr.Model())
+	}
+	if p != paper {
+		log.Printf("paper %s mm", p)
+	}
+	setPaper(p)
 }
 
 func (a *App) print(b []byte) {
@@ -158,6 +173,8 @@ func (a *App) setup(ctx context.Context) string {
 		if !a.readied {
 			a.readied = true
 			a.pr.WaitFor(time.Minute)
+			a.fit()
+			a.fit()
 			a.print(welcomeSlip(c))
 		}
 		pctx, cancel := context.WithCancel(ctx)
@@ -203,6 +220,10 @@ func (a *App) setup(ctx context.Context) string {
 func (a *App) apply(ch Choice) string {
 	c := a.conf()
 	renamed := ch.Name != c.Name
+	if ch.Paper != c.Paper {
+		a.update(func(c *Config) { c.Paper = ch.Paper })
+		a.fit()
+	}
 	if ch.Mode == "offline" {
 		a.update(func(c *Config) { c.Name, c.Mode = ch.Name, "offline" })
 		return ""
