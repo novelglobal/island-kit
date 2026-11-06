@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -114,6 +115,7 @@ type site struct {
 	own      bool
 	asked    int
 	token    string
+	number   int
 	jobs     []map[string]any
 	reports  []map[string]string
 }
@@ -136,7 +138,7 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.token = "tok-from-site"
-		json.NewEncoder(w).Encode(map[string]string{"printer": "laundromate", "token": s.token})
+		json.NewEncoder(w).Encode(map[string]any{"printer": "laundromate", "token": s.token, "number": s.number})
 	case r.URL.Path == "/api/printers/laundromate/next":
 		if r.Header.Get("authorization") != "Bearer "+s.token || s.token == "" {
 			w.WriteHeader(401)
@@ -145,6 +147,9 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.RawQuery, "can=off+wifi") == s.own {
 			w.WriteHeader(400)
 			return
+		}
+		if s.number > 0 {
+			w.Header().Set("x-island", strconv.Itoa(s.number))
 		}
 		if len(s.jobs) == 0 {
 			w.Header().Set("x-wait", "20")
@@ -200,14 +205,19 @@ func TestPairThenPrint(t *testing.T) {
 	if a.waiting(0) != "ABCD2345" {
 		t.Fatalf("waiting: %q", a.waiting(0))
 	}
-	s.approved = true
+	s.approved, s.number = true, 3
 	a.pairStep(0)
 	c := a.conf()
-	if c.Printer != "laundromate" || c.Token != "tok-from-site" || s.asked != 1 || a.waiting(0) != "" {
+	if c.Printer != "laundromate" || c.Token != "tok-from-site" || s.asked != 1 || a.waiting(0) != "" || c.Name != "ISLAND 3" {
 		t.Fatalf("paired: %+v asked %d", c, s.asked)
 	}
-	if sl := slips(t, dir); len(sl) != 2 {
+	if sl := slips(t, dir); len(sl) != 2 || !strings.Contains(sl[0]+sl[1], "ISLAND 3") {
 		t.Fatalf("paired slip missing: %d", len(sl))
+	}
+	s.number = 4
+	a.pullStep(0)
+	if a.conf().Name != "ISLAND 4" {
+		t.Fatalf("renumbered: %q", a.conf().Name)
 	}
 
 	want := []byte("\x1b@HELLO\n\x1dVB\x00")

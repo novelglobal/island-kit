@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/base64"
+	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -63,13 +64,26 @@ func (a *App) pairStep(i int) time.Duration {
 		}
 		l.Printer, l.Token = printer, token
 		a.update(func(c *Config) { c.setLink(i, l) })
+		if i == 0 {
+			a.numbered(int(num(r.Body, "number")))
+		}
 		a.pair[i], a.pairSlips[i], a.refused[i] = nil, 0, 0
 		a.setWaiting(i, "")
 		log.Printf("paired as %s on %s", printer, l.Server)
-		a.print(pairedSlip(c.Name, l))
+		a.print(pairedSlip(a.conf().Name, l))
 		return time.Second
 	}
 	return 30 * time.Second
+}
+
+// novel.global numbers its islands in the order they join, itself the first
+func (a *App) numbered(n int) {
+	name := fmt.Sprintf("ISLAND %d", n)
+	if n < 2 || a.conf().Name == name {
+		return
+	}
+	a.update(func(c *Config) { c.Name = name })
+	log.Printf("now %s", name)
 }
 
 func showCode(c string) string {
@@ -115,9 +129,15 @@ func (a *App) pullStep(i int) (time.Duration, string) {
 		return time.Minute, ""
 	case 204:
 		a.refused[i] = 0
+		if i == 0 {
+			a.numbered(r.Island)
+		}
 		return wait, ""
 	case 200:
 		a.refused[i] = 0
+		if i == 0 {
+			a.numbered(r.Island)
+		}
 	default:
 		log.Printf("the server answered %d", r.Status)
 		return time.Minute, ""
