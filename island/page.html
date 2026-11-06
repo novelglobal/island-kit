@@ -35,7 +35,7 @@ a{color:inherit}.soft{opacity:.5;font-size:11px;letter-spacing:.14em;margin-top:
 <p>THE SETUP WI-FI OPENS: {{.SSID}}.</p>
 {{else if eq .Done "ask"}}
 <form method="post" action="/setup">
-<label class="f">SETUP PASSWORD<input type="password" name="pass" autocomplete="off"></label>
+<label class="f">SLIP KEY (ON THE SLIP)<input type="password" name="pass" autocomplete="off"></label>
 <button>SETUP</button></form>
 
 {{else if .Setup}}
@@ -53,7 +53,7 @@ a{color:inherit}.soft{opacity:.5;font-size:11px;letter-spacing:.14em;margin-top:
 {{range $i, $k := .Known}}<label class="n"><input type="radio" name="net" value="keep:{{$k.Con}}" {{if eq $i 0}}checked{{end}}><span>{{$k.SSID}}</span><i>KNOWN</i></label>{{end}}
 {{range .Nets}}<label class="n"><input type="radio" name="net" value="{{.Name}}"><span>{{.Name}}</span><i>{{if not .Locked}}OPEN {{end}}{{.Signal}}%</i></label>{{end}}
 <label class="f">OTHER<input type="text" name="other" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-<label class="f">PASSWORD<input type="password" name="pass" autocomplete="off"></label>
+<label class="f">YOUR WI-FI PASSWORD<input type="password" name="pass" autocomplete="off"></label>
 <details><summary>OWN SITE</summary><label class="f">SITE<input type="text" name="server" value="{{.Server}}" autocomplete="off" autocapitalize="off" spellcheck="false"></label></details>
 </div>
 <button>BEGIN</button>

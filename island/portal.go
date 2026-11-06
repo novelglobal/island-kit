@@ -161,6 +161,9 @@ func (p *portal) choose(w http.ResponseWriter, r *http.Request) {
 	case c.Mode == "online" && c.Net == "":
 		p.say(w, r, "CHOOSE A WI-FI.")
 		return
+	case c.Mode == "online" && c.Pass != "" && strings.EqualFold(strings.TrimSpace(c.Pass), p.a.conf().SetupPass):
+		p.say(w, r, "THAT IS THE SLIP KEY. TYPE YOUR OWN WI-FI PASSWORD.")
+		return
 	case c.Mode == "online" && !strings.HasPrefix(c.Net, "keep:") && c.Pass != "" && (len(c.Pass) < 8 || len(c.Pass) > 63):
 		p.say(w, r, "A WI-FI PASSWORD HAS 8 TO 63 CHARACTERS.")
 		return
@@ -182,9 +185,9 @@ func (p *portal) choose(w http.ResponseWriter, r *http.Request) {
 func (p *portal) reopen(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 4<<10)
 	r.ParseForm()
-	if clean(r.FormValue("pass"), 64) != p.a.conf().SetupPass {
+	if !strings.EqualFold(strings.TrimSpace(clean(r.FormValue("pass"), 64)), p.a.conf().SetupPass) {
 		time.Sleep(2 * time.Second)
-		p.render(w, view{Done: "ask", Note: "NOT THE SETUP PASSWORD. IT IS ON THE FIRST SLIP, AND ON A LONG PRESS OF THE BUTTON."})
+		p.render(w, view{Done: "ask", Note: "TYPE THE SLIP KEY, PRINTED ON THE SLIP. YOUR WI-FI PASSWORD GOES ON THE NEXT PAGE."})
 		return
 	}
 	p.render(w, view{Done: "reopen"})
