@@ -283,6 +283,9 @@ func (a *App) online(ctx context.Context) string {
 			if time.Since(lost) > lostFor {
 				return "setup"
 			}
+			if time.Since(lost) > 20*time.Second {
+				nm(20*time.Second, "device", "connect", iface)
+			}
 		} else {
 			lost = time.Time{}
 			n := a.conf().sites()

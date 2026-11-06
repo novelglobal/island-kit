@@ -2,6 +2,8 @@
 install -m 755 files/island "${ROOTFS_DIR}/usr/local/bin/island"
 install -m 644 files/island.service "${ROOTFS_DIR}/etc/systemd/system/island.service"
 install -d "${ROOTFS_DIR}/etc/NetworkManager/dnsmasq-shared.d"
+install -d "${ROOTFS_DIR}/etc/NetworkManager/conf.d"
+install -m 644 files/island-wifi.conf "${ROOTFS_DIR}/etc/NetworkManager/conf.d/island-wifi.conf"
 install -m 644 files/island-dns.conf "${ROOTFS_DIR}/etc/NetworkManager/dnsmasq-shared.d/island.conf"
 CFG="${ROOTFS_DIR}/boot/firmware/config.txt"
 [ -f "$CFG" ] || CFG="${ROOTFS_DIR}/boot/config.txt"
@@ -16,4 +18,5 @@ fi
 
 on_chroot << CHROOT
 systemctl enable island.service
+raspi-config nonint do_wifi_country ${WPA_COUNTRY:-AU} || true
 CHROOT
