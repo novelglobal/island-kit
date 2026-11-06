@@ -88,8 +88,10 @@ func (p *Printer) Print(b []byte) error {
 		name := filepath.Join(p.dry, fmt.Sprintf("slip-%d.bin", time.Now().UnixNano()))
 		return os.WriteFile(name, b, 0o644)
 	}
+	// NULs first: ignored by a printer at rest, they finish any picture a cut-off slip left it waiting on
+	b = append(make([]byte, 8192), b...)
 	var err error
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 5 && len(b) > 0; i++ {
 		if i > 0 {
 			time.Sleep(2 * time.Second)
 		}
@@ -102,13 +104,22 @@ func (p *Printer) Print(b []byte) error {
 		if f, err = os.OpenFile(dev, os.O_WRONLY, 0); err != nil {
 			continue
 		}
-		_, err = f.Write(b)
+		for len(b) > 0 {
+			n := min(len(b), 2048)
+			var w int
+			w, err = f.Write(b[:n])
+			b = b[w:]
+			if err != nil {
+				break
+			}
+			time.Sleep(15 * time.Millisecond)
+		}
 		if cerr := f.Close(); err == nil {
 			err = cerr
 		}
-		if err == nil {
-			return nil
-		}
+	}
+	if len(b) == 0 {
+		return nil
 	}
 	return err
 }
