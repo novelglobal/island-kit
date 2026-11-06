@@ -174,7 +174,6 @@ func (a *App) setup(ctx context.Context) string {
 			a.readied = true
 			a.pr.WaitFor(time.Minute)
 			a.fit()
-			a.fit()
 			a.print(welcomeSlip(c))
 		}
 		pctx, cancel := context.WithCancel(ctx)

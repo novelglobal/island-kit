@@ -130,11 +130,11 @@ func saved() []Known {
 func openAP(ssid, pass string) (bool, string) {
 	nm(20*time.Second, "connection", "delete", apCon)
 	args := []string{"connection", "add", "type", "wifi", "ifname", iface, "con-name", apCon, "autoconnect", "no", "ssid", ssid,
-		"802-11-wireless.mode", "ap", "802-11-wireless.band", "bg", "ipv4.method", "shared", "ipv4.addresses", apAddr + "/24",
+		"802-11-wireless.mode", "ap", "802-11-wireless.band", "bg", "802-11-wireless.channel", "6", "ipv4.method", "shared", "ipv4.addresses", apAddr + "/24",
 		"ipv6.method", "disabled"}
 	if pass != "" {
 		args = append(args, "wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", pass, "wifi-sec.proto", "rsn",
-			"wifi-sec.pairwise", "ccmp", "wifi-sec.group", "ccmp")
+			"wifi-sec.pairwise", "ccmp", "wifi-sec.group", "ccmp", "wifi-sec.pmf", "disable")
 	}
 	if code, out := nm(20*time.Second, args...); code != 0 {
 		return false, oneLine(out)
