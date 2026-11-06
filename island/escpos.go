@@ -7,6 +7,8 @@ import (
 	"image"
 	"image/color"
 	"strings"
+
+	"rsc.io/qr"
 )
 
 const (
@@ -68,18 +70,27 @@ func (s *Slip) Cut() *Slip {
 }
 
 func (s *Slip) QR(data string, size int) *Slip {
-	d := []byte(data)
-	n := len(d) + 3
-	s.b.WriteString("\x1d(k\x04\x001A2\x00")
-	s.b.WriteString("\x1d(k\x03\x001C")
-	s.b.WriteByte(byte(size))
-	s.b.WriteString("\x1d(k\x03\x001E1")
-	s.b.WriteString("\x1d(k")
-	s.b.WriteByte(byte(n & 255))
-	s.b.WriteByte(byte(n >> 8))
-	s.b.WriteString("1P0")
-	s.b.Write(d)
-	s.b.WriteString("\x1d(k\x03\x001Q0\n")
+	c, err := qr.Encode(data, qr.M)
+	if err != nil {
+		return s
+	}
+	n := (c.Size + 8) * size
+	if n > dots {
+		size = dots / (c.Size + 8)
+		n = (c.Size + 8) * size
+	}
+	wb := dots / 8
+	left := (dots - n) / 2
+	bits := make([]byte, wb*n)
+	for y := 0; y < n; y++ {
+		for x := 0; x < n; x++ {
+			if c.Black(x/size-4, y/size-4) {
+				X := left + x
+				bits[y*wb+X/8] |= 0x80 >> (X % 8)
+			}
+		}
+	}
+	s.Left().Raster(bits, wb, n)
 	return s
 }
 

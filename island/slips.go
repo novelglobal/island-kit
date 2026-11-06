@@ -17,17 +17,16 @@ func welcomeSlip(c *Config) []byte {
 	ssid := setupSSID(c)
 	s := head(NewSlip(), c.Name)
 	s.Big(true).Line("SCAN TO BEGIN", cols/2).Big(false).Feed(1)
-	s.QR(wifiQR(ssid, c.SetupPass), 7).Feed(1)
-	s.Text("WI-FI  " + ssid).Text("PASSWORD  " + c.SetupPass).Feed(1)
-	s.Text("NO PAGE? OPEN " + apAddr)
+	s.Text("WI-FI  " + ssid).Text("PASSWORD  " + c.SetupPass).Text("NO PAGE? OPEN " + apAddr).Feed(1)
+	s.QR(wifiQR(ssid, c.SetupPass), 7)
 	return s.Cut().Bytes()
 }
 
 func pairSlip(c *Config, code string) []byte {
 	s := head(NewSlip(), c.Name)
 	s.Big(true).Line(showCode(code), cols/2).Big(false).Feed(1)
-	s.QR(c.Server+"/admin#pair="+code, 6).Feed(1)
-	s.Text("SCAN TO APPROVE ON " + strings.ToUpper(hostOf(c.Server)))
+	s.Text("SCAN TO APPROVE ON " + strings.ToUpper(hostOf(c.Server))).Feed(1)
+	s.QR(c.Server+"/admin#pair="+code, 6)
 	return s.Cut().Bytes()
 }
 
@@ -46,12 +45,12 @@ func readySlip(c *Config, wifi string) []byte {
 func islandSlip(c *Config) []byte {
 	s := head(NewSlip(), c.Name)
 	s.Big(true).Line("ISLAND OPEN", cols/2).Big(false).Feed(1)
-	s.QR(wifiQR(c.Name, c.IslandPass), 7).Feed(1)
 	s.Text("WI-FI  " + c.Name)
 	if c.IslandPass != "" {
 		s.Text("PASSWORD  " + c.IslandPass)
 	}
-	s.Feed(1).Text("NO PAGE? OPEN " + apAddr)
+	s.Text("NO PAGE? OPEN " + apAddr).Feed(1)
+	s.QR(wifiQR(c.Name, c.IslandPass), 7)
 	return s.Cut().Bytes()
 }
 

@@ -44,8 +44,8 @@ func TestClean(t *testing.T) {
 
 func TestQR(t *testing.T) {
 	b := NewSlip().QR("HELLO", 6).Bytes()
-	if !bytes.Contains(b, []byte("\x1d(k\x08\x001P0HELLO")) || !bytes.HasSuffix(b, []byte("\x1d(k\x03\x001Q0\n")) {
-		t.Fatalf("qr: %q", b)
+	if bytes.Contains(b, []byte("\x1d(k")) || !bytes.Contains(b, []byte("\x1dv0\x00\x40\x00")) {
+		t.Fatalf("qr as a picture: % x", b[:24])
 	}
 }
 
@@ -193,7 +193,7 @@ func TestPairThenPrint(t *testing.T) {
 		t.Fatalf("wait %v", w)
 	}
 	sl := slips(t, dir)
-	if len(sl) != 1 || !strings.Contains(sl[0], "ABCD-2345") || !strings.Contains(sl[0], srv.URL+"/admin#pair=ABCD2345") {
+	if len(sl) != 1 || !strings.Contains(sl[0], "ABCD-2345") {
 		t.Fatalf("pair slip: %q", sl)
 	}
 	if a.waiting() != "ABCD2345" {
@@ -244,7 +244,7 @@ func TestStatusSlip(t *testing.T) {
 	a, _ := testApp(t, "https://example.org")
 	a.setWaiting("WXYZ6789")
 	b := string(statusSlip(a))
-	for _, want := range []string{"LAUNDROMATE", "MODE  ONLINE", "WXYZ-6789", "https://example.org/admin#pair=WXYZ6789", a.conf().SetupPass} {
+	for _, want := range []string{"LAUNDROMATE", "MODE  ONLINE", "WXYZ-6789", a.conf().SetupPass} {
 		if !strings.Contains(b, want) {
 			t.Fatalf("status slip lacks %q", want)
 		}
@@ -254,7 +254,7 @@ func TestStatusSlip(t *testing.T) {
 func TestWelcomeSlip(t *testing.T) {
 	c := &Config{Name: "ISLAND 1A2B", SetupPass: "abcdefghjk"}
 	b := string(welcomeSlip(c))
-	for _, want := range []string{"SCAN TO BEGIN", "WIFI:T:WPA;S:ISLAND 1A2B SETUP;P:abcdefghjk;;", "PASSWORD  abcdefghjk", apAddr} {
+	for _, want := range []string{"SCAN TO BEGIN", "PASSWORD  abcdefghjk", apAddr} {
 		if !strings.Contains(b, want) {
 			t.Fatalf("welcome slip lacks %q", want)
 		}
