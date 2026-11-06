@@ -114,12 +114,12 @@ func (p *Printer) Print(b []byte) error {
 			}
 			time.Sleep(15 * time.Millisecond)
 		}
+		if err == nil {
+			err = drain(f, 30*time.Second)
+		}
 		if cerr := f.Close(); err == nil {
 			err = cerr
 		}
-	}
-	if len(b) == 0 {
-		return nil
 	}
 	return err
 }

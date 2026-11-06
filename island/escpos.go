@@ -54,6 +54,40 @@ func (s *Slip) Big(on bool) *Slip {
 	return s
 }
 
+func (s *Slip) Size(w, h int) *Slip {
+	s.b.WriteString("\x1d!")
+	s.b.WriteByte(byte((w-1)<<4 | (h - 1)))
+	return s
+}
+
+func (s *Slip) Spaced(n int) *Slip {
+	s.b.WriteString("\x1b ")
+	s.b.WriteByte(byte(n))
+	return s
+}
+
+func (s *Slip) Rule(h int) *Slip {
+	return s.Left().Raster(bytes.Repeat([]byte{0xff}, dots/8*h), dots/8, h)
+}
+
+func (s *Slip) Teeth(up bool) *Slip {
+	const tw, h = 32, 14
+	wb := dots / 8
+	bits := make([]byte, wb*h)
+	for y := 0; y < h; y++ {
+		reach := (h - y) * tw / 2 / h
+		if up {
+			reach = (y + 1) * tw / 2 / h
+		}
+		for x := 0; x < dots; x++ {
+			if d := x%tw - tw/2; d >= -reach && d < reach {
+				bits[y*wb+x/8] |= 0x80 >> (x % 8)
+			}
+		}
+	}
+	return s.Left().Raster(bits, wb, h)
+}
+
 func (s *Slip) Line(text string, width int) *Slip {
 	for _, l := range wrap(ascii(text), width) {
 		s.b.WriteString(l)

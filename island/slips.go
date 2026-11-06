@@ -14,11 +14,13 @@ func head(s *Slip, name string) *Slip {
 }
 
 func welcomeSlip(c *Config) []byte {
-	ssid := setupSSID(c)
-	s := head(NewSlip(), c.Name)
-	s.Big(true).Line("SCAN TO BEGIN", cols/2).Big(false).Feed(1)
-	s.Text("WI-FI  " + ssid).Text("SLIP KEY  " + c.SetupPass).Text("NO PAGE? OPEN " + apAddr).Feed(1)
-	s.QR(wifiQR(ssid, c.SetupPass), 7).Feed(1).Text("RASPBERRY PI 3 OR ZERO 2 W + EPSON TM-T88V")
+	s := NewSlip().Teeth(false).Feed(1)
+	s.Center().Spaced(4).Text("novel.global").Spaced(0).Feed(1).Rule(6)
+	s.Center().Bold(true).Size(2, 4).Line(strings.ToUpper(c.Name), cols/2).Size(1, 1).Bold(false)
+	s.Rule(6).Feed(2)
+	s.Center().Bold(true).Size(2, 3).Line(c.SetupPass, cols/2).Size(1, 1).Bold(false).Feed(1)
+	s.Spaced(4).Text("IP: " + apAddr).Spaced(0)
+	s.QR(wifiQR(setupSSID(c), c.SetupPass), 7).Rule(2).Feed(1).Teeth(true)
 	return s.Cut().Bytes()
 }
 

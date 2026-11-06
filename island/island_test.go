@@ -255,9 +255,14 @@ func TestStatusSlip(t *testing.T) {
 func TestWelcomeSlip(t *testing.T) {
 	c := &Config{Name: "ISLAND 1A2B", SetupPass: "abcdefghjk"}
 	b := string(welcomeSlip(c))
-	for _, want := range []string{"SCAN TO BEGIN", "SLIP KEY  abcdefghjk", apAddr} {
+	for _, want := range []string{"novel.global", "ISLAND 1A2B", "abcdefghjk\n", "IP: " + apAddr + "\n", "\x1dVB\x00"} {
 		if !strings.Contains(b, want) {
 			t.Fatalf("welcome slip lacks %q", want)
+		}
+	}
+	for _, gone := range []string{"SETUP", "SCAN", "KEY", "WI-FI", "RASPBERRY"} {
+		if strings.Contains(b, gone) {
+			t.Fatalf("welcome slip still says %q", gone)
 		}
 	}
 }
