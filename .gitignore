@@ -1,0 +1,5 @@
+/island-arm64
+/island.exe
+*.img
+*.img.xz
+/os-list.json

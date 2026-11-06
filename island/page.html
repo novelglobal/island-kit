@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{.Name}}</title>
+<style>
+:root{color-scheme:light dark;--fg:#141414;--bg:#f2f1ed;--line:rgba(20,20,20,.16)}
+@media (prefers-color-scheme:dark){:root{--fg:#ebe9e3;--bg:#0e0f10;--line:rgba(235,233,227,.16)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.03em}
+main{max-width:420px;margin:0 auto;padding:28px 16px 40px}
+h1{font-size:12px;font-weight:600;letter-spacing:.14em;margin:0 0 20px}
+h2{font-size:11px;font-weight:600;letter-spacing:.14em;margin:26px 0 8px}
+.n{display:flex;align-items:center;gap:12px;padding:14px 2px;border-bottom:1px solid var(--line)}
+.n:first-of-type{border-top:1px solid var(--line)}
+.n input{margin:0;accent-color:currentColor}.n span{flex:1;overflow-wrap:anywhere}.n i{font-style:normal;opacity:.5;letter-spacing:0}
+.f{display:block;margin:18px 0 0;font-size:11px;letter-spacing:.14em}
+.f input{display:block;width:100%;margin:6px 0 0;padding:12px;font:15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:inherit;background:transparent;border:1px solid var(--line);border-radius:4px}
+button{width:100%;margin:26px 0 0;padding:15px;font:inherit;font-weight:600;letter-spacing:.16em;color:var(--bg);background:var(--fg);border:0;border-radius:4px}
+.e{margin:0 0 18px;padding:10px 12px;border:1px solid currentColor;border-radius:4px}
+p{margin:0 0 12px}details{margin:22px 0 0;font-size:11px;letter-spacing:.14em}summary{opacity:.6}
+a{color:inherit}.soft{opacity:.5;font-size:11px;letter-spacing:.14em;margin-top:40px;display:block;text-align:center}
+</style>
+</head>
+<body><main>
+<h1>{{.Name}}</h1>
+{{if .Note}}<p class="e">{{.Note}}</p>{{end}}
+
+{{if eq .Done "online"}}
+<p>JOINING THE WI-FI.</p><p>THE PRINTER PRINTS A CODE. SCAN IT TO APPROVE THIS ISLAND.</p>
+{{else if eq .Done "offline"}}
+<p>OPENING THE ISLAND.</p><p>THE PRINTER PRINTS ITS WI-FI. JOIN IT TO MAKE AND PRINT.</p>
+{{else if eq .Done "reopen"}}
+<p>THE SETUP WI-FI OPENS: {{.SSID}}.</p>
+{{else if eq .Done "ask"}}
+<form method="post" action="/setup">
+<label class="f">SETUP PASSWORD<input type="password" name="pass" autocomplete="off"></label>
+<button>SETUP</button></form>
+
+{{else if .Setup}}
+<form method="post" action="/setup" id="setup">
+<label class="f">NAME<input type="text" name="name" value="{{.Name}}" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+<h2>THIS ISLAND IS</h2>
+<label class="n"><input type="radio" name="mode" value="online" {{if not .Offline}}checked{{end}}><span>ONLINE</span><i>PRINTS FOR THE SITE</i></label>
+<label class="n"><input type="radio" name="mode" value="offline" {{if .Offline}}checked{{end}}><span>OFFLINE</span><i>ITS OWN WI-FI</i></label>
+<div id="wifi">
+<h2>WI-FI</h2>
+{{range $i, $k := .Known}}<label class="n"><input type="radio" name="net" value="keep:{{$k.Con}}" {{if eq $i 0}}checked{{end}}><span>{{$k.SSID}}</span><i>KNOWN</i></label>{{end}}
+{{range .Nets}}<label class="n"><input type="radio" name="net" value="{{.Name}}"><span>{{.Name}}</span><i>{{if not .Locked}}OPEN {{end}}{{.Signal}}%</i></label>{{end}}
+<label class="f">OTHER<input type="text" name="other" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+<label class="f">PASSWORD<input type="password" name="pass" autocomplete="off"></label>
+<details><summary>ANOTHER SITE</summary><label class="f">SITE<input type="text" name="server" value="{{.Server}}" autocomplete="off" autocapitalize="off" spellcheck="false"></label></details>
+</div>
+<button>BEGIN</button>
+</form>
+<script>
+(() => { const f = document.getElementById('setup'), w = document.getElementById('wifi');
+  const sync = () => { w.hidden = f.mode.value === 'offline'; }; f.addEventListener('change', sync); sync(); })();
+</script>
+
+{{else if .Island}}
+<form method="post" action="/print" id="wish">
+<h2>W.I.S.H.</h2>
+<label class="f">W<input type="text" name="w" maxlength="120" autocomplete="off"></label>
+<label class="f">I<input type="text" name="i" maxlength="120" autocomplete="off"></label>
+<label class="f">S<input type="text" name="s" maxlength="120" autocomplete="off"></label>
+<label class="f">H<input type="text" name="h" maxlength="120" autocomplete="off"></label>
+<label class="f" id="ph" hidden>PHOTO<input type="file" accept="image/*"></label>
+<button>PRINT</button>
+</form>
+<p id="say" hidden></p>
+<a class="soft" href="/setup">SETUP</a>
+<script>
+(() => {
+  const f = document.getElementById('wish'), say = document.getElementById('say'), ph = document.getElementById('ph'); ph.hidden = false;
+  const W = 512, PAD = 8, FONT = 'bold 30px ui-monospace, Menlo, Consolas, monospace', LH = 38;
+  const lines = (g, t) => { const out = []; let l = ''; for (const w of t.split(/\s+/).filter(Boolean)) { const n = l ? l + ' ' + w : w; if (g.measureText(n).width > W - 2 * PAD && l) { out.push(l); l = w; } else l = n; } if (l) out.push(l); return out; };
+  const photo = file => new Promise(ok => { if (!file) return ok(null); const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = URL.createObjectURL(file); });
+  const atkinson = (d, w, h) => { const g = new Float32Array(w * h); for (let i = 0; i < w * h; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x, o = g[i] < 128 ? 0 : 255, e = (g[i] - o) / 8; g[i] = o;
+      for (const [dx, dy] of [[1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]]) { const X = x + dx, Y = y + dy; if (X >= 0 && X < w && Y < h) g[Y * w + X] += e; } }
+    for (let i = 0; i < w * h; i++) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = g[i]; d[i * 4 + 3] = 255; } };
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); const b = f.querySelector('button'); b.disabled = true; say.hidden = true;
+    try {
+      const c = document.createElement('canvas'), g = c.getContext('2d'); g.font = FONT;
+      const text = ['w', 'i', 's', 'h'].map(k => f[k].value.trim()).filter(Boolean), set = text.flatMap(t => lines(g, t));
+      const img = await photo(f.querySelector('input[type=file]').files[0]), ih = img ? Math.round(img.height * W / img.width) : 0;
+      if (!set.length && !img) { say.textContent = 'WRITE A LINE FIRST.'; say.hidden = false; return; }
+      c.width = W; c.height = Math.min(4000, PAD + LH + 12 + (ih ? ih + 16 : 0) + set.length * LH + PAD);
+      g.fillStyle = '#fff'; g.fillRect(0, 0, W, c.height); let y = PAD;
+      if (img) { g.drawImage(img, 0, y, W, ih); const d = g.getImageData(0, y, W, ih); atkinson(d.data, W, ih); g.putImageData(d, 0, y); y += ih + 16; }
+      g.fillStyle = '#000'; g.textBaseline = 'top'; g.font = FONT; g.textAlign = 'center'; g.fillText({{.Name}}, W / 2, y); y += LH + 12;
+      g.textAlign = 'left'; for (const l of set) { g.fillText(l, PAD, y); y += LH; }
+      const words = g.getImageData(0, 0, W, c.height); for (let i = 0; i < words.data.length; i += 4) { const v = words.data[i] < 128 ? 0 : 255; words.data[i] = words.data[i + 1] = words.data[i + 2] = v; words.data[i + 3] = 255; } g.putImageData(words, 0, 0);
+      const png = await new Promise(ok => c.toBlob(ok, 'image/png'));
+      const r = await fetch('/print', { method: 'POST', headers: { 'content-type': 'image/png', 'x-island': '1' }, body: png });
+      say.textContent = await r.text(); say.hidden = false; if (/^PRINTED/.test(say.textContent)) f.reset();
+    } catch (err) { f.submit(); } finally { b.disabled = false; }
+  });
+})();
+</script>
+{{end}}
+</main></body>
+</html>
