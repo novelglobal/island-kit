@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"image"
 	"image/color"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -113,6 +114,7 @@ type site struct {
 	mu       sync.Mutex
 	approved bool
 	own      bool
+	open     bool
 	asked    int
 	token    string
 	number   int
@@ -132,6 +134,11 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(201)
 		json.NewEncoder(w).Encode(map[string]any{"code": "ABCD2345", "device": "dev-secret", "every": 2})
 	case r.URL.Path == "/api/pair/poll" && body["device"] == "dev-secret":
+		if s.open {
+			s.token = "tok-from-site"
+			json.NewEncoder(w).Encode(map[string]any{"printer": "laundromate", "token": s.token, "number": 7, "key": "k3y-k3y-k3y-k3y-k3y-k3y-k3y-k3y0"})
+			return
+		}
 		if !s.approved {
 			w.WriteHeader(202)
 			w.Write([]byte(`{"waiting":true}`))
@@ -321,5 +328,27 @@ func TestOwnSiteMoved(t *testing.T) {
 	c, err := loadConfig(p)
 	if err != nil || c.Server != defaultServer || c.Token != "" || c.Own != (Link{"https://example.org", "x", "t"}) {
 		t.Fatalf("moved: %+v %v", c, err)
+	}
+}
+
+func TestOpenJoining(t *testing.T) {
+	s := &site{open: true}
+	srv := httptest.NewServer(s)
+	defer srv.Close()
+	a, dir := testApp(t, srv.URL)
+	var logs bytes.Buffer
+	log.SetOutput(&logs)
+	defer log.SetOutput(os.Stderr)
+	a.pairStep(0)
+	c := a.conf()
+	if c.Token != "tok-from-site" || c.Key != "k3y-k3y-k3y-k3y-k3y-k3y-k3y-k3y0" || c.Name != "ISLAND 7" {
+		t.Fatalf("joined: %+v", c)
+	}
+	sl := slips(t, dir)
+	if len(sl) != 1 || strings.Contains(sl[0], "SCAN TO APPROVE") || !strings.Contains(sl[0], "YOUR ISLAND") {
+		t.Fatalf("one slip, the island's: %q", sl)
+	}
+	if strings.Contains(logs.String(), "k3y") {
+		t.Fatal("the key was logged")
 	}
 }

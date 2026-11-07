@@ -21,6 +21,7 @@ type Config struct {
 	Printed    int    `json:"printed"`
 	Paper      string `json:"paper,omitempty"`
 	Own        Link   `json:"own,omitempty"`
+	Key        string `json:"key,omitempty"`
 }
 
 type Link struct {
@@ -69,7 +70,7 @@ func loadConfig(path string) (*Config, error) {
 		if c.Server != "" && c.Own.Server == "" {
 			c.Own = Link{c.Server, c.Printer, c.Token}
 		}
-		c.Server, c.Printer, c.Token = defaultServer, "", ""
+		c.Server, c.Printer, c.Token, c.Key = defaultServer, "", "", ""
 	}
 	if len(c.SetupPass) < 8 {
 		c.SetupPass = randomWord(10)

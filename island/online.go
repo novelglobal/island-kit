@@ -14,6 +14,7 @@ import (
 
 type pairing struct {
 	code, device string
+	slip         bool
 	every        time.Duration
 	until        time.Time
 }
@@ -41,10 +42,6 @@ func (a *App) pairStep(i int) time.Duration {
 		a.pair[i] = &pairing{code: str(r.Body, "code"), device: str(r.Body, "device"), every: every, until: time.Now().Add(14 * time.Minute)}
 		a.setWaiting(i, a.pair[i].code)
 		log.Printf("pairing code %s for %s", showCode(a.pair[i].code), l.Server)
-		if a.pairSlips[i] < 3 {
-			a.pairSlips[i]++
-			a.print(pairSlip(c, l.Server, a.pair[i].code))
-		}
 	}
 	r, err := call("POST", l.Server+"/api/pair/poll", "", map[string]string{"device": a.pair[i].device})
 	if err != nil {
@@ -52,6 +49,11 @@ func (a *App) pairStep(i int) time.Duration {
 	}
 	switch r.Status {
 	case 202:
+		if !a.pair[i].slip && a.pairSlips[i] < 3 {
+			a.pair[i].slip = true
+			a.pairSlips[i]++
+			a.print(pairSlip(c, l.Server, a.pair[i].code))
+		}
 		return a.pair[i].every
 	case 404:
 		a.pair[i] = nil
@@ -63,14 +65,24 @@ func (a *App) pairStep(i int) time.Duration {
 			return time.Minute
 		}
 		l.Printer, l.Token = printer, token
-		a.update(func(c *Config) { c.setLink(i, l) })
+		key := str(r.Body, "key")
+		a.update(func(c *Config) {
+			c.setLink(i, l)
+			if i == 0 && key != "" {
+				c.Key = key
+			}
+		})
 		if i == 0 {
 			a.numbered(int(num(r.Body, "number")))
 		}
 		a.pair[i], a.pairSlips[i], a.refused[i] = nil, 0, 0
 		a.setWaiting(i, "")
 		log.Printf("paired as %s on %s", printer, l.Server)
-		a.print(pairedSlip(a.conf().Name, l))
+		if i == 0 && key != "" {
+			a.print(islandKeySlip(a.conf().Name, l, key))
+		} else {
+			a.print(pairedSlip(a.conf().Name, l))
+		}
 		return time.Second
 	}
 	return 30 * time.Second

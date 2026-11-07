@@ -36,6 +36,14 @@ func pairedSlip(name string, l Link) []byte {
 	return textSlip(name, "PAIRED", strings.ToUpper(l.Printer)+" ON "+strings.ToUpper(hostOf(l.Server)), "READY TO PRINT")
 }
 
+func islandKeySlip(name string, l Link, key string) []byte {
+	s := head(NewSlip(), name)
+	s.Text(strings.ToUpper(l.Printer) + " ON " + strings.ToUpper(hostOf(l.Server))).Feed(1)
+	s.Big(true).Line("YOUR ISLAND", cols/2).Big(false).Feed(1)
+	s.QR(l.Server+"/island#k="+key, 6)
+	return s.Cut().Bytes()
+}
+
 func readySlip(c *Config, l Link, wifi string) []byte {
 	lines := []string{"READY", strings.ToUpper(l.Printer) + " ON " + strings.ToUpper(hostOf(l.Server))}
 	if wifi != "" {
